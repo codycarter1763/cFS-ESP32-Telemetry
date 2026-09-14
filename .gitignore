@@ -1,0 +1,23 @@
+# cFS build directories
+build-native_std/
+build-native_eds/
+build-pc686_rtems5/
+build-*/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PlatformIO
+.pio/
+.pioenvs/
+
+# Compiled objects
+*.o
+*.so
+*.a
+*.tbl
+
+# Logs
+*.log
