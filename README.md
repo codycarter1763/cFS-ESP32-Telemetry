@@ -1,7 +1,7 @@
 # NASA cFS & STM32 Telemetry Bridge Implementation
 
 # About
-This repo documents a embedded flight-software integration project demonstrating communication between NASA's Core Flight System (cFS) and an STM32 microcontroller and DHT11 temperature/humidity sensor using CCSDS Space Packet Protocol telemetry packets. 
+This repo documents an embedded flight-software integration project demonstrating communication between NASA's Core Flight System (cFS) and an STM32 microcontroller and DHT11 temperature/humidity sensor using CCSDS Space Packet Protocol.
 
 # What is NASA Core Flight System?
 NASA's Core Flight System (cFS) is a reusable, platform-independent flight software framework designed for embedded real-time systems. Its architecture separates applications from the underlying operating system and hardware, making flight software more portable and reusable.
@@ -23,7 +23,7 @@ CCSDS Space Packets provide a standardized structure for exchanging spacecraft t
 <img width="425" height="247" alt="image" src="https://github.com/user-attachments/assets/eeb8c898-881b-4c8b-900e-439ec779c6ce" />
 <br/>
 
-Each packet consists of a primary header, secondary header, and telemetry frame that gets decoded and transported to specific applications based on message IDs. The specific structure is shown below per header based on the [CCSDS Space Packet Protocol Blue Manual](https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/01//133x0b2e2.pdf?gv-iframe=true):
+A CCSDS Space Packet has a primary header, with an optional secondary header and user data/application data. The specific structure is shown below per header based on the [CCSDS Space Packet Protocol Blue Manual](https://ccsds.org/wp-content/uploads/gravity_forms/5-448e85c647331d9cbaf66c096458bdd5/2025/01//133x0b2e2.pdf?gv-iframe=true):
 
 <img width="723" height="300" alt="image" src="https://github.com/user-attachments/assets/33561f52-4940-4b19-a5bd-9446dae2d1aa" />
 
