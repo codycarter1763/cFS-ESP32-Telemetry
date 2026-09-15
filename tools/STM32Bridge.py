@@ -35,5 +35,3 @@ while True:
         continue
 
     sock.sendto(packet, (UDP_IP, UDP_PORT))
-
-    print(f"Forwarded {pkt_len} bytes")
