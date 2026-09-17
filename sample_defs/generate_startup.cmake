@@ -8,7 +8,7 @@ function (generate_cfs_startup_script CFS_INSTALL_DIR)
         "CFE_APP, sch_lab,     SCH_LAB_AppMain,    SCH_LAB,      35,   32768, 0x0, 0;\n"
         "CFE_APP, ci_lab,      CI_LAB_AppMain,     CI_LAB,       40,   32768, 0x0, 0;\n"
         "CFE_APP, to_lab,      TO_LAB_AppMain,     TO_LAB,       45,   32768, 0x0, 0;\n"
-        
+        "CFE_APP, esp32_bridge_app, ESP32Bridge_Main, ESP32_BRIDGE_APP, 90, 16384, 0x0, 0;\n"
     )
 
     # the rest of the apps can vary by config

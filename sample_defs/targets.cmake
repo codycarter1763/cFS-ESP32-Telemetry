@@ -98,7 +98,6 @@ LIST(APPEND MISSION_GLOBAL_APPLIST lc)
 LIST(APPEND MISSION_GLOBAL_APPLIST sc)
 LIST(APPEND MISSION_GLOBAL_APPLIST ds)
 LIST(APPEND MISSION_GLOBAL_APPLIST hk)
-
 # Some apps do not have EDS support yet.
 # These should not be included by default when building with EDS.
 if (NOT CFE_EDS_ENABLED AND SIMULATION STREQUAL "native")
@@ -130,9 +129,8 @@ endif ()
 # all the CFS apps.  RISCV-64 is selected as the platform
 # to line up with expectations of next-gen flight hardware.
 SET(cpu1_PROCESSORID 1)
-SET(cpu1_APPLIST ci_lab to_lab sch_lab)
+SET(cpu1_APPLIST ci_lab to_lab sch_lab esp32_bridge_app)
 SET(cpu1_SYSTEM riscv64-poky-linux)
-
 # The "cpu2" is a contrived example of a helper system,
 # using a big-endian processor by default.  This emulates
 # a heterogeneous deployment where a big- and little-
