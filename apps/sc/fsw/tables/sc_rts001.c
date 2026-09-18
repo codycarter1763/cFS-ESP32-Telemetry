@@ -20,29 +20,24 @@
  * @file
  *   CFS Stored Command (SC) sample RTS table 1
  *
- * The following source code demonstrates how to create a sample
- * Stored Command RTS table using the software defined command structures.
- * It's also possible to create this table via alternative tools
- * (ground system) and or system agnostic data definitions (XTCE/EDS/JSON).
- *
- * This source file creates a sample RTS table that contains only
- * the following commands that are scheduled as follows:
- *
  * SC NOOP command, execution wakeup count relative to start of RTS = 0
  * SC Enable RTS #2 command, execution wakeup count relative to prev cmd = 5
  * SC Start RTS #2 command, execution wakeup count relative to prev cmd = 5
+ * SC Enable RTS #3 command, execution wakeup count relative to prev cmd = 5
+ * SC Start RTS #3 command, execution wakeup count relative to prev cmd = 5
+ * SC Enable RTS #4 command, execution wakeup count relative to prev cmd = 5
+ * (RTS #4 is only ever Started by LC itself, as the humidity re-arm response)
  */
 
 #include "cfe.h"
 #include "cfe_tbl_filedef.h"
 
-#include "sc_tbldefs.h"      /* defines SC table headers */
-#include "sc_platform_cfg.h" /* defines table buffer size */
-#include "sc_msgdefs.h"      /* defines SC command code values */
-#include "sc_msgids.h"       /* defines SC packet msg ID's */
-#include "sc_msg.h"          /* defines SC message structures */
+#include "sc_tbldefs.h"
+#include "sc_platform_cfg.h"
+#include "sc_msgdefs.h"
+#include "sc_msgids.h"
+#include "sc_msg.h"
 
-/* Checksum for each sample command */
 #ifndef SC_NOOP_CKSUM
 #define SC_NOOP_CKSUM (0x3E ^ ((SC_CMD_MID & 0xFF00) >> 8u) ^ ((SC_CMD_MID & 0x00FF)))
 #endif
@@ -52,8 +47,17 @@
 #ifndef SC_START_RTS2_CKSUM
 #define SC_START_RTS2_CKSUM (0x3C ^ ((SC_CMD_MID & 0xFF00) >> 8u) ^ ((SC_CMD_MID & 0x00FF)))
 #endif
+#ifndef SC_ENABLE_RTS3_CKSUM
+#define SC_ENABLE_RTS3_CKSUM (SC_ENABLE_RTS2_CKSUM ^ 0x01)
+#endif
+#ifndef SC_START_RTS3_CKSUM
+#define SC_START_RTS3_CKSUM (SC_START_RTS2_CKSUM ^ 0x01)
+#endif
+/* RtsNum low byte: 2 (base) -> 4 = XOR delta 0x06 */
+#ifndef SC_ENABLE_RTS4_CKSUM
+#define SC_ENABLE_RTS4_CKSUM (SC_ENABLE_RTS2_CKSUM ^ 0x06)
+#endif
 
-/* Custom table structure, modify as needed to add desired commands */
 typedef struct
 {
     SC_RtsEntryHeader_t hdr1;
@@ -62,19 +66,22 @@ typedef struct
     SC_EnableRtsCmd_t   cmd2;
     SC_RtsEntryHeader_t hdr3;
     SC_StartRtsCmd_t    cmd3;
+    SC_RtsEntryHeader_t hdr4;
+    SC_EnableRtsCmd_t   cmd4;
+    SC_RtsEntryHeader_t hdr5;
+    SC_StartRtsCmd_t    cmd5;
+    SC_RtsEntryHeader_t hdr6;
+    SC_EnableRtsCmd_t   cmd6;
 } SC_RtsStruct001_t;
 
-/* Define the union to size the table correctly */
 typedef union
 {
     SC_RtsStruct001_t rts;
     uint16            buf[SC_RTS_BUFF_SIZE];
 } SC_RtsTable001_t;
 
-/* Helper macro to get size of structure elements */
 #define SC_MEMBER_SIZE(member) (sizeof(((SC_RtsStruct001_t *)0)->member))
 
-/* Used designated initializers to be verbose, modify as needed/desired */
 SC_RtsTable001_t SC_Rts001 = {
     /* 1 */
     .rts.hdr1.WakeupCount = 0,
@@ -88,8 +95,22 @@ SC_RtsTable001_t SC_Rts001 = {
     /* 3 */
     .rts.hdr3.WakeupCount = 5,
     .rts.cmd3 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd3), SC_START_RTS_CC, SC_START_RTS2_CKSUM) },
-    .rts.cmd3.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(2)
+    .rts.cmd3.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(2),
+
+    /* 4 */
+    .rts.hdr4.WakeupCount = 5,
+    .rts.cmd4 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd4), SC_ENABLE_RTS_CC, SC_ENABLE_RTS3_CKSUM) },
+    .rts.cmd4.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(3),
+
+    /* 5 */
+    .rts.hdr5.WakeupCount = 5,
+    .rts.cmd5 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd5), SC_START_RTS_CC, SC_START_RTS3_CKSUM) },
+    .rts.cmd5.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(3),
+
+    /* 6 -- enable RTS4 so LC can start it on demand*/
+    .rts.hdr6.WakeupCount = 5,
+    .rts.cmd6 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd6), SC_ENABLE_RTS_CC, SC_ENABLE_RTS4_CKSUM) },
+    .rts.cmd6.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(4)
 };
 
-/* Macro for table structure */
 CFE_TBL_FILEDEF(SC_Rts001, SC.RTS_TBL001, SC Example RTS_TBL001, sc_rts001.tbl)

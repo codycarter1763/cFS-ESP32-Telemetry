@@ -178,33 +178,33 @@ CFE_TBL_FileDef_t CFE_TBL_FileDef = { "LC_ADT",
 ** Default actionpoint definition table (ADT) data
 */
 LC_ADTEntry_t LC_ADT[LC_MAX_ACTIONPOINTS] = {
-    /* #0 (unused) */
-    {.DefaultState      = LC_APSTATE_NOT_USED,
-     .MaxPassiveEvents  = 0,
-     .MaxPassFailEvents = 0,
-     .MaxFailPassEvents = 0,
-     .RTSId             = 0,
-     .MaxFailsBeforeRTS = 0,
-     .EventType         = CFE_EVS_EventType_INFORMATION,
-     .EventID           = 0,
-     .EventText         = {" "},
+    /* #0 (high temperature event) */
+    {.DefaultState      = LC_APSTATE_ACTIVE,
+     .MaxPassiveEvents  = 2,
+     .MaxPassFailEvents = 2,
+     .MaxFailPassEvents = 2,
+     .RTSId             = 4,
+     .MaxFailsBeforeRTS = 5,
+     .EventType         = CFE_EVS_EventType_ERROR,
+     .EventID           = LC_BASE_AP_EID + 0,
+     .EventText         = {"ESP32: high temperature"},
      .RPNEquation =
          {/* (WP_0) */
           0, LC_RPN_EQUAL}},
 
-    /* #1 (unused) */
-    {.DefaultState      = LC_APSTATE_NOT_USED,
-     .MaxPassiveEvents  = 0,
-     .MaxPassFailEvents = 0,
-     .MaxFailPassEvents = 0,
-     .RTSId             = 0,
-     .MaxFailsBeforeRTS = 0,
-     .EventType         = CFE_EVS_EventType_INFORMATION,
-     .EventID           = 0,
-     .EventText         = {" "},
+    /* #1 (low humidity event) */
+{    .DefaultState      = LC_APSTATE_ACTIVE,
+     .MaxPassiveEvents  = 2,
+     .MaxPassFailEvents = 2,
+     .MaxFailPassEvents = 2,
+     .RTSId             = 4,
+     .MaxFailsBeforeRTS = 5,
+     .EventType         = CFE_EVS_EventType_ERROR,
+     .EventID           = LC_BASE_AP_EID + 1,
+     .EventText         = {"ESP32: high humidity"},
      .RPNEquation =
          {/* (WP_0) */
-          0, LC_RPN_EQUAL}},
+          1, LC_RPN_EQUAL}},
 
     /* #2 (unused) */
     {.DefaultState      = LC_APSTATE_NOT_USED,

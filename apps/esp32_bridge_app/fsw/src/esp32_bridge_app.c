@@ -53,11 +53,13 @@ ESP32_BRIDGE_APP_Data_t ESP32_BRIDGE_APP_Data;
 void ESP32Bridge_Main(void)
 {
     CFE_Status_t status;
+    uint8        sync_byte;
     uint16       pkt_len;
     uint8        buf[64];
     ssize_t      read_result;
-    int          i;
     int          packet_count = 0;
+    const uint8  SYNC_BYTES[2] = {0xAA, 0x55};
+    uint8        sync_window[2] = {0, 0};
 
     CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
 
@@ -71,7 +73,6 @@ void ESP32Bridge_Main(void)
     {
         CFE_ES_PerfLogExit(ESP32_BRIDGE_APP_PERF_ID);
 
-        /* If serial port not open, retry every 2 seconds */
         if (ESP32_BRIDGE_APP_Data.SerialFd < 0)
         {
             OS_TaskDelay(2000);
@@ -87,31 +88,30 @@ void ESP32Bridge_Main(void)
             continue;
         }
 
-        /* Read 2-byte length prefix — blocks up to 2 seconds (VTIME=20) */
+        /* Scan one byte at a time for the 2-byte sync marker before trusting anything */
+        read_result = read(ESP32_BRIDGE_APP_Data.SerialFd, &sync_byte, 1);
+        if (read_result != 1)
+        {
+            CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
+            continue;
+        }
+        sync_window[0] = sync_window[1];
+        sync_window[1] = sync_byte;
+        if (sync_window[0] != SYNC_BYTES[0] || sync_window[1] != SYNC_BYTES[1])
+        {
+            /* Not synced yet -- keep scanning */
+            CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
+            continue;
+        }
+
+        /* Read 2-byte length prefix -- native little-endian, NOT byte-swapped */
         read_result = read(ESP32_BRIDGE_APP_Data.SerialFd, (uint8 *)&pkt_len, 2);
         if (read_result != 2)
         {
-            if (read_result < 0 && errno != EAGAIN)
-            {
-                printf("[ESP32_BRIDGE_APP] Serial read error: %d (errno=%d: %s)\n",
-                       (int)read_result, errno, strerror(errno));
-            }
-            /* No data yet — loop back and try again */
             CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
             continue;
         }
 
-        /* Validate length */
-        if (pkt_len < 8 || pkt_len > sizeof(buf))
-        {
-            printf("[ESP32_BRIDGE_APP] Invalid packet length: %u (min=8, max=%lu) — flushing\n",
-                   pkt_len, sizeof(buf));
-            tcflush(ESP32_BRIDGE_APP_Data.SerialFd, TCIFLUSH);
-            CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
-            continue;
-        }
-
-        /* Read rest of packet */
         read_result = read(ESP32_BRIDGE_APP_Data.SerialFd, buf, pkt_len);
         if (read_result != (int)pkt_len)
         {
@@ -121,48 +121,38 @@ void ESP32Bridge_Main(void)
             continue;
         }
 
-        /* Print raw hex dump */
-        printf("[ESP32_BRIDGE_APP] Raw packet bytes: ");
-        for (i = 0; i < pkt_len; i++)
+        /* Parse CCSDS packet payload -- ESP32 sends everything big-endian (hton16 applied) */
+        if (pkt_len >= 14)
         {
-            printf("%02X ", buf[i]);
-        }
-        printf("\n");
-
-        /* Parse CCSDS packet payload (skip 6-byte primary header) */
-        if (pkt_len >= 10)
-        {
-            int16  temp_raw    = (int16)((buf[7] << 8) | buf[6]);   /* little-endian */
-            uint16 hum_raw     = (uint16)((buf[9] << 8) | buf[8]);  /* little-endian */
-            float  temp_c      = temp_raw / 100.0f;
-            float  hum_pct     = hum_raw  / 100.0f;
+            /* buf[0-5]=primary header, buf[6-7]=seconds, buf[8-9]=subseconds,
+               buf[10-11]=temperature_C, buf[12-13]=humidity -- all big-endian */
+            int16  temp_raw = (int16)((buf[10] << 8) | buf[11]);
+            uint16 hum_raw  = (uint16)((buf[12] << 8) | buf[13]);
+            float  temp_c   = temp_raw / 100.0f;
+            float  hum_pct  = hum_raw  / 100.0f;
 
             packet_count++;
 
-            printf("[ESP32_BRIDGE_APP] Seq=%d Temp=%.2f C  Humidity=%.2f%%\n",
-                   packet_count, temp_c, hum_pct);
+            
 
-            /* Update sensor data packet */
             ESP32_BRIDGE_APP_Data.SensorData.Payload.Temperature   = temp_c;
-            ESP32_BRIDGE_APP_Data.SensorData.Payload.Humidity       = hum_pct;
-            ESP32_BRIDGE_APP_Data.SensorData.Payload.SequenceCount  = packet_count;
-            ESP32_BRIDGE_APP_Data.SensorData.Payload.Status         = 0;
+            ESP32_BRIDGE_APP_Data.SensorData.Payload.Humidity      = hum_pct;
+            ESP32_BRIDGE_APP_Data.SensorData.Payload.SequenceCount = packet_count;
+            ESP32_BRIDGE_APP_Data.SensorData.Payload.Status        = 0;
 
-            /* Timestamp and publish to Software Bus */
             CFE_SB_TimeStampMsg(CFE_MSG_PTR(ESP32_BRIDGE_APP_Data.SensorData.TelemetryHeader));
             CFE_SB_TransmitMsg(CFE_MSG_PTR(ESP32_BRIDGE_APP_Data.SensorData.TelemetryHeader), true);
 
             CFE_EVS_SendEvent(ESP32_BRIDGE_APP_INIT_INF_EID,
                               CFE_EVS_EventType_INFORMATION,
-                              "ESP32_BRIDGE_APP: Seq=%d Temp=%.2fC Humidity=%.2f%%",
+                              "ESP32_BRIDGE_APP: Seq=%d Temp=%.1fC Humidity=%.1f%%",
                               packet_count, temp_c, hum_pct);
         }
         else
         {
-            printf("[ESP32_BRIDGE_APP] Packet too short: %u bytes (need >= 10)\n", pkt_len);
+            printf("[ESP32_BRIDGE_APP] Packet too short: %u bytes (need >= 14)\n", pkt_len);
         }
 
-        /* Wait 2 seconds before reading next packet */
         OS_TaskDelay(2000);
 
         CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);

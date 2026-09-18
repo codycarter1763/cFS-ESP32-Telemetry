@@ -1,91 +1,71 @@
-/************************************************************************
- * NASA Docket No. GSC-19,200-1, and identified as "cFS Draco"
- *
- * Copyright (c) 2023 United States Government as represented by the
- * Administrator of the National Aeronautics and Space Administration.
- * All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License. You may obtain
- * a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- ************************************************************************/
-
-/**
- * @file
- *   CFS Stored Command (SC) sample RTS table 003
- *
- * The following source code demonstrates how to create a sample
- * Stored Command RTS table using the software defined command structures.
- * It's also possible to create this table via alternative tools
- * (ground system) and or system agnostic data definitions (XTCE/EDS/JSON).
- *
- * This source file creates a sample RTS table that contains only
- * the following commands that are scheduled as follows:
- *
- * SC NOOP command, execution wakeup count relative to start of RTS = 0
- * SC Enable RTS #2 command, execution wakeup count relative to prev cmd = 5
- * SC Start RTS #2 command, execution wakeup count relative to prev cmd = 5
- */
-
 #include "cfe.h"
 #include "cfe_tbl_filedef.h"
 
-#include "sc_tbldefs.h"      /* defines SC table headers */
-#include "sc_platform_cfg.h" /* defines table buffer size */
-#include "sc_msgdefs.h"      /* defines SC command code values */
-#include "sc_msgids.h"       /* defines SC packet msg ID's */
-#include "sc_msg.h"          /* defines SC message structures */
+#include "sc_tbldefs.h"
+#include "sc_platform_cfg.h"
+#include "sc_msgdefs.h"
+#include "sc_msgids.h"
+#include "sc_msg.h"
 
-/* Checksum for each sample command */
-#ifndef SC_NOOP_CKSUM
-#define SC_NOOP_CKSUM (0x3E ^ ((SC_CMD_MID & 0xFF00) >> 8u) ^ ((SC_CMD_MID & 0x00FF)))
+/* LC_SAMPLE_AP_MID's resolved value, confirmed directly from EVS output
+   (ID = 0x000018A6) -- avoids pulling in LC's internal topicid headers,
+   which aren't meant to be included from outside the LC app itself */
+#define LC_SAMPLE_AP_MID_VALUE 0x18A6
+
+/* Local copy of LC's Sample AP payload shape -- matches LC_SampleAP_Payload_t
+   exactly (StartIndex, EndIndex, UpdateAge, Padding, all uint16) */
+typedef struct
+{
+    uint16 StartIndex;
+    uint16 EndIndex;
+    uint16 UpdateAge;
+    uint16 Padding;
+} LocalSampleAP_Payload_t;
+
+typedef struct
+{
+    CFE_MSG_CommandHeader_t CommandHeader;
+    LocalSampleAP_Payload_t Payload;
+} LocalSampleAPCmd_t;
+
+#ifndef LC_SAMPLE_AP_CKSUM
+#define LC_SAMPLE_AP_CKSUM 0x88
+#endif
+#ifndef SC_START_RTS2_CKSUM
+#define SC_START_RTS2_CKSUM (0x3C ^ ((SC_CMD_MID & 0xFF00) >> 8u) ^ ((SC_CMD_MID & 0x00FF)))
+#endif
+#ifndef SC_START_RTS3_CKSUM
+#define SC_START_RTS3_CKSUM (SC_START_RTS2_CKSUM ^ 0x01)
 #endif
 
-/* Custom table structure, modify as needed to add desired commands */
 typedef struct
 {
     SC_RtsEntryHeader_t hdr1;
-    SC_NoopCmd_t        cmd1;
+    LocalSampleAPCmd_t  cmd1;
     SC_RtsEntryHeader_t hdr2;
-    SC_NoopCmd_t        cmd2;
-    SC_RtsEntryHeader_t hdr3;
-    SC_NoopCmd_t        cmd3;
+    SC_StartRtsCmd_t    cmd2;
 } SC_RtsStruct003_t;
 
-/* Define the union to size the table correctly */
 typedef union
 {
     SC_RtsStruct003_t rts;
     uint16            buf[SC_RTS_BUFF_SIZE];
 } SC_RtsTable003_t;
 
-/* Helper macro to get size of structure elements */
 #define SC_MEMBER_SIZE(member) (sizeof(((SC_RtsStruct003_t *)0)->member))
 
-/* Used designated initializers to be verbose, modify as needed/desired */
 SC_RtsTable003_t SC_Rts003 = {
-    /* 1 */
+    /* 1: sample both actionpoints (index 0 and 1) */
     .rts.hdr1.WakeupCount = 0,
-    .rts.cmd1             = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd1), SC_NOOP_CC, SC_NOOP_CKSUM) },
+    .rts.cmd1 = { CFE_MSG_CMD_HDR_INIT(LC_SAMPLE_AP_MID_VALUE, SC_MEMBER_SIZE(cmd1), 0, LC_SAMPLE_AP_CKSUM) },
+    .rts.cmd1.Payload.StartIndex = 0,
+    .rts.cmd1.Payload.EndIndex   = 1,
+    .rts.cmd1.Payload.UpdateAge  = 1,
 
-    /* 2 */
-    .rts.hdr2.WakeupCount = 5,
-    .rts.cmd2             = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd2), SC_NOOP_CC, SC_NOOP_CKSUM) },
-
-    /* 3 */
-    .rts.hdr3.WakeupCount = 5,
-    .rts.cmd3             = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd3), SC_NOOP_CC, SC_NOOP_CKSUM) }
+    /* 2: loop back -- restart RTS 3, ~2 seconds later */
+    .rts.hdr2.WakeupCount = 2,
+    .rts.cmd2 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd2), SC_START_RTS_CC, SC_START_RTS3_CKSUM) },
+    .rts.cmd2.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(3)
 };
 
-/* Macro for table structure */
-CFE_TBL_FILEDEF(SC_Rts003, SC.RTS_TBL003, SC Example RTS_TBL003, sc_rts003.tbl)
-
-/************************/
-/*  End of File Comment */
-/************************/
+CFE_TBL_FILEDEF(SC_Rts003, SC.RTS_TBL003, SC LC Sample AP Loop, sc_rts003.tbl)

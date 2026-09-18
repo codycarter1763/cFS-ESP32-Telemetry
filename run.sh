@@ -43,13 +43,7 @@ else
 fi
 
 # ── Check Python scripts ──────────────────────────────────
-BRIDGE_SCRIPT="$TOOLS_DIR/STM32Bridge.py"
 GUI_SCRIPT="$TOOLS_DIR/sensor_gui.py"
-
-if [ ! -f "$BRIDGE_SCRIPT" ]; then
-    echo -e "${RED}ERROR: Bridge script not found at $BRIDGE_SCRIPT${NC}"
-    exit 1
-fi
 
 if [ ! -f "$GUI_SCRIPT" ]; then
     echo -e "${RED}ERROR: GUI script not found at $GUI_SCRIPT${NC}"
@@ -68,6 +62,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# ── Force a clean power-on reset each run ─────────────────
+# PSP's CDS/reset-area shared memory persists across restarts by
+# design (that's what lets state survive a real processor reset) --
+# but for a demo/dev environment, leftover shared memory from the
+# previous run means every subsequent launch looks like a processor
+# reset to cFE instead of a fresh power-on, which is what was
+# preventing RTS1's auto-start chain from firing.
+echo -e "${BLU}Clearing previous cFS shared memory state...${NC}"
+for id in $(ipcs -m | awk -v u="$(whoami)" '$3==u {print $2}'); do
+    ipcrm -m "$id" 2>/dev/null
+done
+rm -f "$CFS_EXE"/.cdskeyfile "$CFS_EXE"/.resetkeyfile "$CFS_EXE"/.reservedkeyfile
+
 # ── Start cFS ─────────────────────────────────────────────
 echo ""
 echo -e "${BLU}[1/3] Starting cFS...${NC}"
@@ -85,22 +92,6 @@ if ! kill -0 $CFS_PID 2>/dev/null; then
     exit 1
 fi
 echo -e "${GRN}  cFS running${NC}"
-
-# ── Start STM32 bridge ────────────────────────────────────
-echo ""
-echo -e "${BLU}[2/3] Starting STM32 bridge...${NC}"
-cd "$CFS_DIR"
-python3 "$BRIDGE_SCRIPT" &
-BRIDGE_PID=$!
-echo -e "  PID: $BRIDGE_PID"
-sleep 2
-
-if ! kill -0 $BRIDGE_PID 2>/dev/null; then
-    echo -e "${YLW}WARNING: Bridge exited early (STM32 may not be connected)${NC}"
-else
-    echo -e "${GRN}  Bridge running${NC}"
-fi
-
 
 # ── Start GUI ─────────────────────────────────────────────
 echo ""

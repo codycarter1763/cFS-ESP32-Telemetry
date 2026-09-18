@@ -99,28 +99,28 @@ CFE_TBL_FileDef_t CFE_TBL_FileDef = { "LC_WDT",
 ** Default watchpoint definition table (WDT) data
 */
 LC_WDTEntry_t LC_WDT[LC_MAX_WATCHPOINTS] = {
-    /* #0 (unused) */
+    /* #0 (ESP32_BRIDGE_APP - high temperature) */
     {
-     .DataType                   = LC_DATA_WATCH_NOT_USED,
-     .OperatorID                 = LC_OPER_NONE,
-     .MessageID                  = CFE_SB_MSGID_RESERVED,
-     .WatchpointOffset           = 0,
+     .DataType                   = LC_DATA_WATCH_FLOAT_LE,
+     .OperatorID                 = LC_OPER_GT,
+     .MessageID                  = CFE_SB_MSGID_WRAP_VALUE(0x895),
+     .WatchpointOffset           = 16,
      .BitMask                    = LC_BITMASK_NONE,
      .CustomFuncArgument         = 0,
-     .ResultAgeWhenStale         = 0,
-     .ComparisonValue.Unsigned32 = 0,
+     .ResultAgeWhenStale         = 5,
+     .ComparisonValue.Float32 = 30.0,
      },
 
-    /* #1 (unused) */
+    /* #1 (ESP32_BRIDGE_APP - low humidity) */
     {
-     .DataType                   = LC_DATA_WATCH_NOT_USED,
-     .OperatorID                 = LC_OPER_NONE,
-     .MessageID                  = CFE_SB_MSGID_RESERVED,
-     .WatchpointOffset           = 0,
+     .DataType                   = LC_DATA_WATCH_FLOAT_LE,
+     .OperatorID                 = LC_OPER_GT,
+     .MessageID                  = CFE_SB_MSGID_WRAP_VALUE(0x895),
+     .WatchpointOffset           = 20,
      .BitMask                    = LC_BITMASK_NONE,
      .CustomFuncArgument         = 0,
-     .ResultAgeWhenStale         = 0,
-     .ComparisonValue.Unsigned32 = 0,
+     .ResultAgeWhenStale         = 5,
+     .ComparisonValue.Float32 = 60.0,
      },
 
     /* #2 (unused) */

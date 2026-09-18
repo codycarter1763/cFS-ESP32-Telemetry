@@ -3,6 +3,9 @@
 STM32 cFS Sensor Telemetry GUI
 Displays live temperature and humidity from cFS via UDP port 2234
 Includes Enable Telemetry button to send TO_LAB_ENABLE_OUTPUT to CI_LAB
+Includes Activate LC button to send LC_SET_LC_STATE(ACTIVE) to CI_LAB
+Displays LC actionpoint alerts (high temp / high humidity) parsed from
+LC's own EVS events, carried on the standard EVS long-event MID
 """
 
 import socket
@@ -20,9 +23,10 @@ import matplotlib.dates
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
 
-SENSOR_MID  = 0x0896
-UDP_PORT    = 2234
-MAX_POINTS  = 60  # 2 minutes of data at 2s intervals
+SENSOR_MID          = 0x0895
+EVS_LONG_EVENT_MID  = 0x0808
+UDP_PORT            = 2234
+MAX_POINTS          = 60  # 2 minutes of data at 2s intervals
 
 # TO_LAB command parameters
 TO_CMD_MID  = 0x1880
@@ -34,7 +38,8 @@ temps     = collections.deque(maxlen=MAX_POINTS)
 humids    = collections.deque(maxlen=MAX_POINTS)
 times     = collections.deque(maxlen=MAX_POINTS)
 lock      = threading.Lock()
-latest    = {'temp': None, 'humidity': None, 'seq': 0, 'packets': 0}
+latest    = {'temp': None, 'humidity': None, 'seq': 0, 'packets': 0,
+             'lc_temp_alert': False, 'lc_humid_alert': False}
 running   = True
 
 
@@ -65,6 +70,20 @@ def enable_telemetry(dest_ip='127.0.0.1'):
     print(f"TO_LAB_ENABLE_OUTPUT sent → dest={dest_ip}")
 
 
+def set_lc_state_active():
+    """
+    Send LC_SET_LC_STATE(ACTIVE) to CI_LAB on port 1234.
+    LC boots in LC_STATE_DISABLED by design (a fault-monitoring app
+    shouldn't start silently armed) -- this activates it so watchpoints
+    actually get evaluated instead of always reading STALE.
+    """
+    packet = bytes.fromhex("18A4C0000005028501000000")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(packet, ('127.0.0.1', CI_PORT))
+    sock.close()
+    print("LC_SET_LC_STATE(ACTIVE) sent")
+
+
 def udp_receiver():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -74,18 +93,45 @@ def udp_receiver():
 
     while running:
         try:
-            data, _ = sock.recvfrom(4096)
-            if len(data) < 14:
+            data, addr = sock.recvfrom(4096)
+            if len(data) < 6:
                 continue
             stream_id = struct.unpack('>H', data[0:2])[0]
+
+            if stream_id == EVS_LONG_EVENT_MID and len(data) >= 170:
+                # EVS long-event telemetry: AppName (20B, offset 16),
+                # EventID/EventType (u16 each, little-endian), SCID/PID
+                # (u32 each, little-endian), then a 122-byte Message string
+                app_name = data[16:36].split(b'\x00')[0].decode(errors='replace')
+                message  = data[48:48+122].split(b'\x00')[0].decode(errors='replace')
+
+                if app_name == "LC" and ("ESP32:" in message or "AP state change" in message):
+                    with lock:
+                        if "AP state change" in message:
+                            if "PASS to FAIL" in message:
+                                if "AP = 0" in message:
+                                    latest['lc_temp_alert'] = True
+                                elif "AP = 1" in message:
+                                    latest['lc_humid_alert'] = True
+                            elif "FAIL to PASS" in message:
+                                if "AP = 0" in message:
+                                    latest['lc_temp_alert'] = False
+                                elif "AP = 1" in message:
+                                    latest['lc_humid_alert'] = False
+                        elif "high temperature" in message:
+                            latest['lc_temp_alert'] = True
+                        elif "high humidity" in message:
+                            latest['lc_humid_alert'] = True
+                continue
+
             if stream_id != SENSOR_MID:
                 continue
-            seq_ctrl  = struct.unpack('>H', data[2:4])[0]
-            temp_raw  = struct.unpack('>h', data[10:12])[0]
-            humid_raw = struct.unpack('>H', data[12:14])[0]
-            temp_c    = temp_raw  / 100.0
-            humidity  = humid_raw / 100.0
-            seq_num   = seq_ctrl & 0x3FFF
+            if len(data) < 32:
+                continue
+
+            temp_c    = struct.unpack('<f', data[16:20])[0]
+            humidity  = struct.unpack('<f', data[20:24])[0]
+            seq_num   = struct.unpack('<I', data[24:28])[0]
 
             with lock:
                 now = datetime.now()
@@ -104,13 +150,12 @@ def udp_receiver():
 
     sock.close()
 
-
 class SensorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("STM32 cFS Sensor Telemetry")
         self.root.configure(bg='#0d1117')
-        self.root.geometry("900x720")
+        self.root.geometry("900x760")
 
         # ── Header ──────────────────────────────────────────────────────────
         hdr = tk.Frame(root, bg='#0d1117', pady=10)
@@ -150,10 +195,33 @@ class SensorGUI:
                   cursor='hand2',
                   command=self._enable_tlm).pack(side='left', padx=6)
 
+        tk.Button(tlm_bar,
+                  text="  Activate LC  ",
+                  font=('Courier New', 10, 'bold'),
+                  fg='#0d1117', bg='#58a6ff',
+                  activebackground='#388bfd',
+                  activeforeground='#0d1117',
+                  relief='flat', padx=8, pady=4,
+                  cursor='hand2',
+                  command=self._activate_lc).pack(side='left', padx=6)
+
         self.tlm_status = tk.Label(tlm_bar, text="",
                                     font=('Courier New', 10),
                                     fg='#3fb950', bg='#161b22')
         self.tlm_status.pack(side='left', padx=6)
+
+        # ── LC alert bar ─────────────────────────────────────────────────────
+        alert_bar = tk.Frame(root, bg='#161b22', pady=6)
+        alert_bar.pack(fill='x', padx=20, pady=(0, 8))
+
+        tk.Label(alert_bar, text="LC:",
+                 font=('Courier New', 10), fg='#8b949e',
+                 bg='#161b22', padx=10).pack(side='left')
+
+        self.lc_alert_lbl = tk.Label(alert_bar, text="● Nominal",
+                                      font=('Courier New', 10, 'bold'),
+                                      fg='#3fb950', bg='#161b22')
+        self.lc_alert_lbl.pack(side='left', padx=6)
 
         # ── Big readout cards ────────────────────────────────────────────────
         cards = tk.Frame(root, bg='#0d1117')
@@ -235,6 +303,14 @@ class SensorGUI:
         except Exception as e:
             self.tlm_status.config(text=f"✗ {e}", fg='#ff7b72')
 
+    def _activate_lc(self):
+        try:
+            set_lc_state_active()
+            self.tlm_status.config(text="✓ LC activated", fg='#3fb950')
+            self.root.after(3000, lambda: self.tlm_status.config(text=""))
+        except Exception as e:
+            self.tlm_status.config(text=f"✗ {e}", fg='#ff7b72')
+
     def _update_plot(self, frame):
         with lock:
             if len(times) < 2:
@@ -268,10 +344,12 @@ class SensorGUI:
 
     def _update_labels(self):
         with lock:
-            t   = latest['temp']
-            h   = latest['humidity']
-            seq = latest['seq']
-            pkt = latest['packets']
+            t            = latest['temp']
+            h            = latest['humidity']
+            seq          = latest['seq']
+            pkt          = latest['packets']
+            temp_alert   = latest['lc_temp_alert']
+            humid_alert  = latest['lc_humid_alert']
 
         if t is not None:
             self.temp_var.set(f"{t:.1f}")
@@ -281,6 +359,15 @@ class SensorGUI:
             self.pkt_var.set(f"PKTS: {pkt}")
         else:
             self.status_lbl.config(text="● Waiting...", fg='#f0883e')
+
+        if temp_alert and humid_alert:
+            self.lc_alert_lbl.config(text="● HIGH TEMP + HIGH HUMIDITY", fg='#ff7b72')
+        elif temp_alert:
+            self.lc_alert_lbl.config(text="● HIGH TEMPERATURE", fg='#ff7b72')
+        elif humid_alert:
+            self.lc_alert_lbl.config(text="● HIGH HUMIDITY", fg='#ff7b72')
+        else:
+            self.lc_alert_lbl.config(text="● Nominal", fg='#3fb950')
 
         self.root.after(500, self._update_labels)
 
