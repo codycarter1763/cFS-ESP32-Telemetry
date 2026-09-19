@@ -29,6 +29,7 @@ FM_DELETE_FILE_CC      = 5
 FM_GET_DIR_LIST_PKT_CC = 15
 CI_PORT                = 1234
 
+
 def print_dat_files(path):
     path = os.path.expanduser(path)
 
@@ -181,7 +182,31 @@ def cmd_delete_file(args):
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def main():
-    ap = argparse.ArgumentParser(description="DS log viewer and FM file commands")
+    ap = argparse.ArgumentParser(
+        description="DS log viewer and FM file commands",
+        epilog="""
+examples:
+  # Decode a DS-recorded events file (offline, no cFS needed)
+  python3 tools/view_ds_log.py decode build-native_std/exe/cpu1/cf/events00001008.dat
+
+  # Decode a sensor log, only showing lines containing "humidity"
+  python3 tools/view_ds_log.py decode build-native_std/exe/cpu1/cf/sensor_6000.dat --filter humidity
+
+  # Decode a sensor log and also write readings to CSV
+  python3 tools/view_ds_log.py decode build-native_std/exe/cpu1/cf/sensor_6000.dat --csv readings.csv
+
+  # List local .dat files and their sizes (offline, no cFS needed)
+  python3 tools/view_ds_log.py local-files build-native_std/exe/cpu1/cf
+
+  # Send FM_GET_DIR_LIST_PKT to a running cFS instance (requires cFS up and
+  # Enable Telemetry already sent this session)
+  python3 tools/view_ds_log.py list-files /cf
+
+  # Delete a specific file on a running cFS instance
+  python3 tools/view_ds_log.py delete-file /cf/sensor_6000_1.dat
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     sub = ap.add_subparsers(required=True)
 
     p_decode = sub.add_parser('decode', help="decode a DS-recorded .dat file")
