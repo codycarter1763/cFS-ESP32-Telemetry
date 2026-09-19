@@ -76,6 +76,7 @@
 #define FILE_CFE_APP_HK_PKTS  4
 #define FILE_CFE_APP_TLM_PKTS 5
 
+#define FILE_SENSOR_TLM_PKTS 6
 /*
 ** Sample packet filter table data
 */
@@ -195,10 +196,10 @@ DS_FilterTable_t DS_FilterTable = {
           { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED },
           { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED } } },
      /* Packet Index 014 */
-      { /* .MessageID = */ CFE_SB_MSGID_RESERVED,
+      { /* .MessageID = */ CFE_SB_MSGID_WRAP_VALUE(0x0895),
         /* .Filter    = */
         { /* File table index, filter type, N, X, O */
-          { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED },
+          { FILE_SENSOR_TLM_PKTS, DS_BY_COUNT, 1, 1, 0 },
           { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED },
           { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED },
           { DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED, DS_UNUSED } } },

@@ -43,7 +43,7 @@ HS_AMTEntry_t HS_AppMon_Tbl[HS_MAX_MONITORED_APPS] = {
     /*   4 */
     { "CFE_SB",   0, 10, HS_AMTActType_NOACT },
     /*   5 */
-    { "",         0, 10, HS_AMTActType_NOACT },
+    { "ESP32_BRIDGE_APP",         0, 2, HS_AMTActType_APP_RESTART },
     /*   6 */
     { "",         0, 10, HS_AMTActType_NOACT },
     /*   7 */

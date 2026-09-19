@@ -74,12 +74,12 @@ DS_DestFileTable_t DS_DestFileTable = {
      /* File Index 00 -- event packets only */
         {
             /* .Movename      = */ DS_EMPTY_STRING,
-            /* .Pathname      = */ "set_by_cmd_b4_enable",
+            /* .Pathname      = */ "/cf",
             /* .Basename      = */ "events",
             /* .Extension     = */ ".dat",
 
             /* .FileNameType  = */ DS_BY_COUNT,
-            /* .EnableState   = */ DS_DISABLED,
+            /* .EnableState   = */ DS_ENABLED,
             /* .MaxFileSize   = */ (1024 * 32), /* 32 K-bytes */
             /* .MaxFileAge    = */ (60 * 45),   /* 45 minutes */
             /* .SequenceCount = */ 1000,
@@ -146,15 +146,15 @@ DS_DestFileTable_t DS_DestFileTable = {
         }, /* File Index 06 */
         {
             /* .Movename      = */ DS_EMPTY_STRING,
-            /* .Pathname      = */ DS_EMPTY_STRING,
-            /* .Basename      = */ DS_EMPTY_STRING,
-            /* .Extension     = */ DS_EMPTY_STRING,
+            /* .Pathname      = */ "/cf",
+            /* .Basename      = */ "sensor",
+            /* .Extension     = */ ".dat",
 
-            /* .FileNameType  = */ DS_UNUSED,
-            /* .EnableState   = */ DS_UNUSED,
-            /* .MaxFileSize   = */ DS_UNUSED,
-            /* .MaxFileAge    = */ DS_UNUSED,
-            /* .SequenceCount = */ DS_UNUSED,
+            /* .FileNameType  = */ DS_BY_COUNT,
+            /* .EnableState   = */ DS_ENABLED,
+            /* .MaxFileSize   = */ (1024 * 1024 * 1), /* 1 M-bytes */
+            /* .MaxFileAge    = */ (60 * 60 *  1),     /* 1 hours */
+            /* .SequenceCount = */ 6000,
         }, /* File Index 07 */
         {
             /* .Movename      = */ DS_EMPTY_STRING,

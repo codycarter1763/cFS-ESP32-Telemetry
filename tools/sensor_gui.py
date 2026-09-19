@@ -6,6 +6,7 @@ Includes Enable Telemetry button to send TO_LAB_ENABLE_OUTPUT to CI_LAB
 Includes Activate LC button to send LC_SET_LC_STATE(ACTIVE) to CI_LAB
 Displays LC actionpoint alerts (high temp / high humidity) parsed from
 LC's own EVS events, carried on the standard EVS long-event MID
+Includes FM List Files / Delete File buttons to manage onboard DS logs
 """
 
 import socket
@@ -32,6 +33,12 @@ MAX_POINTS          = 60  # 2 minutes of data at 2s intervals
 TO_CMD_MID  = 0x1880
 ENABLE_FC   = 0x06
 CI_PORT     = 1234
+
+# FM (File Manager) command/telemetry parameters
+FM_CMD_MID             = 0x188C
+FM_DIR_LIST_TLM_MID    = 0x088C
+FM_DELETE_FILE_CC      = 5
+FM_GET_DIR_LIST_PKT_CC = 15
 
 # Shared data
 temps     = collections.deque(maxlen=MAX_POINTS)
@@ -84,6 +91,49 @@ def set_lc_state_active():
     print("LC_SET_LC_STATE(ACTIVE) sent")
 
 
+def compute_checksum(packet_bytes):
+    """Real cFE command checksum algorithm: 0xFF XORed with every byte,
+    checksum field itself zeroed during computation."""
+    chksum = 0xFF
+    for b in packet_bytes:
+        chksum ^= b
+    return chksum
+
+
+def _build_command(mid, function_code, payload):
+    dlen = 2 + len(payload) - 1  # cmd secondary (2) + payload - 1
+    primary = struct.pack('>HHH', mid, 0xC000, dlen)
+    cmd_sec_placeholder = struct.pack('>BB', function_code, 0x00)
+    packet = primary + cmd_sec_placeholder + payload
+    checksum = compute_checksum(packet)
+    cmd_sec = struct.pack('>BB', function_code, checksum)
+    return primary + cmd_sec + payload
+
+
+def list_files(path='/cf'):
+    """Send FM_GET_DIR_LIST_PKT -- lists a directory's contents as telemetry.
+    The response arrives back through udp_receiver like any other packet."""
+    path_bytes = path.encode('utf-8')[:63].ljust(64, b'\x00')
+    payload = path_bytes + struct.pack('<IB3x', 0, 1)  # Offset=0, GetSizeTimeMode=1
+    packet = _build_command(FM_CMD_MID, FM_GET_DIR_LIST_PKT_CC, payload)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(packet, ('127.0.0.1', CI_PORT))
+    sock.close()
+    print(f"FM_GET_DIR_LIST_PKT sent for {path}")
+
+
+def delete_file(path):
+    """Send FM_DELETE_FILE for the given onboard path."""
+    path_bytes = path.encode('utf-8')[:63].ljust(64, b'\x00')
+    packet = _build_command(FM_CMD_MID, FM_DELETE_FILE_CC, path_bytes)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(packet, ('127.0.0.1', CI_PORT))
+    sock.close()
+    print(f"FM_DELETE_FILE sent for {path}")
+
+
 def udp_receiver():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -124,6 +174,28 @@ def udp_receiver():
                             latest['lc_humid_alert'] = True
                 continue
 
+            if stream_id == FM_DIR_LIST_TLM_MID and len(data) >= 92:
+                payload = data[16:]
+                dir_name = payload[0:64].split(b'\x00')[0].decode(errors='replace')
+                total_files, files_in_packet, first_index = struct.unpack('<III', payload[64:76])
+                
+                entry_size = 76  # EntryName[64] + Size(4) + ModifyTime(4) + Permissions(4)
+                matches = []
+                for i in range(files_in_packet):
+                    start = 76 + i * entry_size
+                    entry = payload[start:start+entry_size]
+                    name = entry[0:64].split(b'\x00')[0].decode(errors='replace')
+                    size = struct.unpack('<I', entry[64:68])[0]
+                    if "events" in name:
+                        matches.append((name, size))
+
+                print(f"\n[FM] {dir_name}: {len(matches)} events file(s) " 
+                        f"({files_in_packet} of {total_files} total files in this packet)")
+                for name, size in matches:
+                    print(f"       {name:<30} {size} bytes")
+                continue
+                
+
             if stream_id != SENSOR_MID:
                 continue
             if len(data) < 32:
@@ -155,7 +227,7 @@ class SensorGUI:
         self.root = root
         self.root.title("STM32 cFS Sensor Telemetry")
         self.root.configure(bg='#0d1117')
-        self.root.geometry("900x760")
+        self.root.geometry("900x800")
 
         # ── Header ──────────────────────────────────────────────────────────
         hdr = tk.Frame(root, bg='#0d1117', pady=10)
@@ -209,6 +281,46 @@ class SensorGUI:
                                     font=('Courier New', 10),
                                     fg='#3fb950', bg='#161b22')
         self.tlm_status.pack(side='left', padx=6)
+
+        # ── FM file management bar ──────────────────────────────────────────
+        fm_bar = tk.Frame(root, bg='#161b22', pady=8)
+        fm_bar.pack(fill='x', padx=20, pady=(0, 8))
+
+        tk.Label(fm_bar, text="Path:",
+                 font=('Courier New', 10), fg='#8b949e',
+                 bg='#161b22', padx=10).pack(side='left')
+
+        self.fm_path = tk.StringVar(value='/cf')
+        tk.Entry(fm_bar, textvariable=self.fm_path,
+                 font=('Courier New', 10), width=24,
+                 bg='#0d1117', fg='#c9d1d9',
+                 insertbackground='white',
+                 relief='flat', bd=4).pack(side='left', padx=4)
+
+        tk.Button(fm_bar,
+                  text="  List Files  ",
+                  font=('Courier New', 10, 'bold'),
+                  fg='#0d1117', bg='#a371f7',
+                  activebackground='#8957e5',
+                  activeforeground='#0d1117',
+                  relief='flat', padx=8, pady=4,
+                  cursor='hand2',
+                  command=self._list_files).pack(side='left', padx=6)
+
+        tk.Button(fm_bar,
+                  text="  Delete File  ",
+                  font=('Courier New', 10, 'bold'),
+                  fg='#0d1117', bg='#ff7b72',
+                  activebackground='#e5534b',
+                  activeforeground='#0d1117',
+                  relief='flat', padx=8, pady=4,
+                  cursor='hand2',
+                  command=self._delete_file).pack(side='left', padx=6)
+
+        self.fm_status = tk.Label(fm_bar, text="",
+                                   font=('Courier New', 10),
+                                   fg='#3fb950', bg='#161b22')
+        self.fm_status.pack(side='left', padx=6)
 
         # ── LC alert bar ─────────────────────────────────────────────────────
         alert_bar = tk.Frame(root, bg='#161b22', pady=6)
@@ -310,6 +422,22 @@ class SensorGUI:
             self.root.after(3000, lambda: self.tlm_status.config(text=""))
         except Exception as e:
             self.tlm_status.config(text=f"✗ {e}", fg='#ff7b72')
+
+    def _list_files(self):
+        try:
+            list_files(self.fm_path.get())
+            self.fm_status.config(text="✓ List sent (see console)", fg='#3fb950')
+            self.root.after(3000, lambda: self.fm_status.config(text=""))
+        except Exception as e:
+            self.fm_status.config(text=f"✗ {e}", fg='#ff7b72')
+
+    def _delete_file(self):
+        try:
+            delete_file(self.fm_path.get())
+            self.fm_status.config(text="✓ Delete sent", fg='#3fb950')
+            self.root.after(3000, lambda: self.fm_status.config(text=""))
+        except Exception as e:
+            self.fm_status.config(text=f"✗ {e}", fg='#ff7b72')
 
     def _update_plot(self, frame):
         with lock:

@@ -30,6 +30,8 @@
 #include "hs_tbldefs.h"
 #include "cfe_tbl_filedef.h"
 
+#define ESP32_BRIDGE_APP_SERIAL_LOST_ERR_EID 13
+
 CFE_TBL_FileDef_t CFE_TBL_FileDef = { "HS_EventMon_Tbl",
                                       HS_APP_NAME ".EventMon_Tbl",
                                       "HS EventMon Table",
@@ -49,7 +51,7 @@ HS_EMTEntry_t HS_EventMon_Tbl[HS_MAX_MONITORED_EVENTS] = {
     /*   4 */
     { "CFE_SB",   0, 10, HS_EMTActType_NOACT },
     /*   5 */
-    { "",         0, 10, HS_EMTActType_NOACT },
+    { "ESP32_BRIDGE_APP",         0, ESP32_BRIDGE_APP_SERIAL_LOST_ERR_EID, HS_EMTActType_APP_RESTART },
     /*   6 */
     { "",         0, 10, HS_EMTActType_NOACT },
     /*   7 */

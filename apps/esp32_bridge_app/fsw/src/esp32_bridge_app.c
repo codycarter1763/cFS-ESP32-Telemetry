@@ -21,7 +21,7 @@
  *   ESP32 Bridge App - reads CCSDS packets from ESP32 via serial
  *   and publishes sensor data to the cFS Software Bus.
  */
-
+#define _GNU_SOURCE
 #include "esp32_bridge_app.h"
 #include "esp32_bridge_app_cmds.h"
 #include "esp32_bridge_app_utils.h"
@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 /* Forward declarations */
 static int  ESP32_BRIDGE_APP_OpenSerial(const char *port, speed_t baud);
@@ -90,11 +91,30 @@ void ESP32Bridge_Main(void)
 
         /* Scan one byte at a time for the 2-byte sync marker before trusting anything */
         read_result = read(ESP32_BRIDGE_APP_Data.SerialFd, &sync_byte, 1);
+        if (read_result == 0 || (read_result < 0 && (errno == ENODEV || errno == EIO || errno == ENXIO)))
+        {
+        /* Device genuinely disappeared -- either a clean EOF/hangup (read_result == 0,
+        the common case for a USB-serial adapter physically unplugged) or a specific
+        device error, not just "no data yet" */
+            printf("[ESP32_BRIDGE_APP] Serial device lost: read_result=%d errno=%d (%s)\n",
+            (int)read_result, errno, strerror(errno));
+            close(ESP32_BRIDGE_APP_Data.SerialFd);
+            ESP32_BRIDGE_APP_Data.SerialFd = -1;
+
+            CFE_EVS_SendEvent(ESP32_BRIDGE_APP_SERIAL_LOST_ERR_EID,
+                      CFE_EVS_EventType_ERROR,
+                      "ESP32_BRIDGE_APP: Serial connection lost, read_result=%d errno=%d",
+                      (int)read_result, errno);
+
+            CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
+                continue;
+        }
         if (read_result != 1)
         {
             CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
             continue;
         }
+
         sync_window[0] = sync_window[1];
         sync_window[1] = sync_byte;
         if (sync_window[0] != SYNC_BYTES[0] || sync_window[1] != SYNC_BYTES[1])
@@ -133,8 +153,6 @@ void ESP32Bridge_Main(void)
 
             packet_count++;
 
-            
-
             ESP32_BRIDGE_APP_Data.SensorData.Payload.Temperature   = temp_c;
             ESP32_BRIDGE_APP_Data.SensorData.Payload.Humidity      = hum_pct;
             ESP32_BRIDGE_APP_Data.SensorData.Payload.SequenceCount = packet_count;
@@ -171,16 +189,32 @@ void ESP32Bridge_Main(void)
 static int ESP32_BRIDGE_APP_OpenSerial(const char *port, speed_t baud)
 {
     struct termios tty;
+    int modem_status;
 
     int fd = open(port, O_RDWR | O_NOCTTY);
     if (fd < 0)
     {
         printf("[ESP32_BRIDGE_APP] Failed to open port %s: errno=%d (%s)\n",
                port, errno, strerror(errno));
-        return -1;
+        
+        CFE_EVS_SendEvent(ESP32_BRIDGE_APP_SERIAL_LOST_ERR_EID,
+                      CFE_EVS_EventType_ERROR,
+                      "ESP32_BRIDGE_APP: Failed to open port %s:", port);
+
+        CFE_ES_PerfLogEntry(ESP32_BRIDGE_APP_PERF_ID);
+            return -1;
     }
 
     printf("[ESP32_BRIDGE_APP] Opened port %s (fd=%d)\n", port, fd);
+
+     /* Explicitly de-assert DTR/RTS -- opening the port can otherwise trigger
+       the board's auto-reset circuit into bootloader/download mode instead
+       of a normal run-mode reset, leaving the ESP32 silently stuck */
+    if (ioctl(fd, TIOCMGET, &modem_status) == 0)
+    {
+        modem_status &= ~(TIOCM_DTR | TIOCM_RTS);
+        ioctl(fd, TIOCMSET, &modem_status);
+    }
 
     memset(&tty, 0, sizeof(tty));
 

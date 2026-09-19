@@ -43,7 +43,7 @@ HS_XCTEntry_t HS_ExeCount_Tbl[HS_MAX_EXEC_CNT_SLOTS] = {
     /*   4 */
     { "CFE_SB",   0, HS_XCTResType_APP_MAIN },
     /*   5 */
-    { "",         0, HS_XCTResType_NOTYPE   },
+    { "ESP32_BRIDGE_APP",         0, HS_XCTResType_APP_MAIN   },
     /*   6 */
     { "",         0, HS_XCTResType_NOTYPE   },
     /*   7 */
