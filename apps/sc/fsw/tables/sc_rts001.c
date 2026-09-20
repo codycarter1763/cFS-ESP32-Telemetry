@@ -88,26 +88,16 @@ SC_RtsTable001_t SC_Rts001 = {
     .rts.cmd1             = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd1), SC_NOOP_CC, SC_NOOP_CKSUM) },
 
     /* 2 */
-    .rts.hdr2.WakeupCount = 5,
-    .rts.cmd2 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd2), SC_ENABLE_RTS_CC, SC_ENABLE_RTS2_CKSUM) },
-    .rts.cmd2.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(2),
-
-    /* 3 */
-    .rts.hdr3.WakeupCount = 5,
-    .rts.cmd3 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd3), SC_START_RTS_CC, SC_START_RTS2_CKSUM) },
-    .rts.cmd3.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(2),
-
-    /* 4 */
     .rts.hdr4.WakeupCount = 5,
     .rts.cmd4 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd4), SC_ENABLE_RTS_CC, SC_ENABLE_RTS3_CKSUM) },
     .rts.cmd4.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(3),
 
-    /* 5 */
+    /* 3 */
     .rts.hdr5.WakeupCount = 5,
     .rts.cmd5 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd5), SC_START_RTS_CC, SC_START_RTS3_CKSUM) },
     .rts.cmd5.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(3),
 
-    /* 6 -- enable RTS4 so LC can start it on demand*/
+    /* 4 -- enable RTS4 so LC can start it on demand*/
     .rts.hdr6.WakeupCount = 5,
     .rts.cmd6 = { CFE_MSG_CMD_HDR_INIT(SC_CMD_MID, SC_MEMBER_SIZE(cmd6), SC_ENABLE_RTS_CC, SC_ENABLE_RTS4_CKSUM) },
     .rts.cmd6.Payload.RtsNum = SC_RTS_NUM_INITIALIZER(4)
