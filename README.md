@@ -55,9 +55,9 @@ Below is the structure for a single CCSDS packet including any notable informati
 <img width="1040" height="769" alt="image" src="https://github.com/user-attachments/assets/fb0c6ccd-a4ca-4a68-8260-91c6ac4d451c" />
 
 # How To Build and Run
-To make building and running this implementation as easy as possible, I provided two scripts that can be called from the cFS directory that will either build or run cFS. 
+To make building and running this implementation as easy as possible, I provided two scripts that can be called from the cFS directory that will build or run cFS. 
 
-First, download PlatformIO to upload the STM32 software inside STM32_Bridge to the board, or use Arduino IDE. 
+First, download PlatformIO to upload the ESP32 software inside ESP32_Bridge to the board, or use Arduino IDE. 
 
 ``` bash
 Navigate to cFS location from this repo,
@@ -73,10 +73,16 @@ To run:
 
 If everything is running correctly, the terminal should show cFS posting commands and a GUI should appear. Click 'Enable Telemetry' at destination IP 127.0.0.1 to let data from the TO_LAB app to be transmitted out of cFS to the GUI via UDP.
 
-# Results
-Below shows the working setup, where a ESP32 connected to cFS can sucessfully send CCSDS packets to CI_LAB, and out to TO_LAB to mimic how a real aerospace system works.
+## Viewing Data Files 
 
-<img width="1851" height="1055" alt="image" src="https://github.com/user-attachments/assets/37660e54-ff2b-4e99-8cde-6ada724127d9" />
+# Results
+Below shows the working setup, where a ESP32 connected to cFS can sucessfully send CCSDS packets to ESP32_BRIDGE, and out to TO_LAB to mimic how a real aerospace system works. 
+
+## Demonstration of LC App
+
+## Demonstration of HS App
+
+## Demonstration of FM App
 
 ## Design Information
 Here, I wanted to document some design challenges I faced and context for the inner workings of the apps and ESP32 for anyone who wants to trace through my software.
@@ -115,4 +121,4 @@ Here, I wanted to document some design challenges I faced and context for the in
 - Currently, an included python tool interacts with .dat files to allow a user to manipulate, delete, and manage data files.
   
 # Conclusion
-Feel free to clone the repo and add your own features to this demo!
+Feel free to clone the repo and add your own features to this demo! 
