@@ -1,4 +1,5 @@
 # NASA cFS & STM32 Telemetry Bridge Implementation
+<img width="4885" height="4005" alt="IMG_7980" src="https://github.com/user-attachments/assets/8d460c6f-1e6e-4392-9c7e-e8c40d517790" />
 
 # About
 This repo documents an embedded flight-software integration project demonstrating communication between NASA's Core Flight System (cFS) and an ESP32 microcontroller and DHT11 temperature/humidity sensor using CCSDS Space Packet Protocol.
