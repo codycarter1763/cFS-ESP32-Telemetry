@@ -7,10 +7,12 @@ decode  -- decodes raw CCSDS packet-stream files written by cFS's Data
            flow live over the software bus, so this reuses the exact
            decode logic already proven in sensor_gui.py's udp_receiver.
 
-list-files / delete-file -- sends live FM (File Manager) commands to a
-           running cFS instance to browse or clean up onboard files
-           (e.g. the .dat logs DS writes), same command-injection
-           pattern as sensor_gui.py's enable_telemetry()/set_lc_state_active().
+local-files -- lists .dat files sitting in a local directory.
+
+delete-file -- sends a live FM (File Manager) command to a running cFS
+           instance to clean up onboard files (e.g. the .dat logs DS
+           writes), same command-injection pattern as sensor_gui.py's
+           enable_telemetry()/set_lc_state_active().
 """
 import struct
 import argparse
@@ -24,9 +26,7 @@ EVS_LONG_EVENT_MID = 0x0808
 DS_FILE_HEADER_SIZE = 140  # CFE_FS_Header_t (64) + DS_FileHeader_t (68)
 
 FM_CMD_MID             = 0x188C
-FM_DIR_LIST_TLM_MID    = 0x088C
 FM_DELETE_FILE_CC      = 5
-FM_GET_DIR_LIST_PKT_CC = 15
 CI_PORT                = 1234
 
 
@@ -147,19 +147,6 @@ def _build_command(mid, function_code, payload):
     return primary + cmd_sec + payload
 
 
-def list_files(path='/cf'):
-    """Send FM_GET_DIR_LIST_PKT -- lists a directory's contents as telemetry."""
-    path_bytes = path.encode('utf-8')[:63].ljust(64, b'\x00')
-    payload = path_bytes + struct.pack('<IB3x', 0, 1)  # Offset=0, GetSizeTimeMode=1
-    packet = _build_command(FM_CMD_MID, FM_GET_DIR_LIST_PKT_CC, payload)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(packet, ('127.0.0.1', CI_PORT))
-    sock.close()
-    print(f"FM_GET_DIR_LIST_PKT sent for {path}")
-    print("(response arrives as telemetry on cFS terminal, not printed here)")
-
-
 def delete_file(path):
     """Send FM_DELETE_FILE for the given onboard path."""
     path_bytes = path.encode('utf-8')[:63].ljust(64, b'\x00')
@@ -169,10 +156,6 @@ def delete_file(path):
     sock.sendto(packet, ('127.0.0.1', CI_PORT))
     sock.close()
     print(f"FM_DELETE_FILE sent for {path}")
-
-
-def cmd_list_files(args):
-    list_files(args.path)
 
 
 def cmd_delete_file(args):
@@ -198,10 +181,6 @@ examples:
   # List local .dat files and their sizes (offline, no cFS needed)
   python3 tools/view_ds_log.py local-files build-native_std/exe/cpu1/cf
 
-  # Send FM_GET_DIR_LIST_PKT to a running cFS instance (requires cFS up and
-  # Enable Telemetry already sent this session)
-  python3 tools/view_ds_log.py list-files /cf
-
   # Delete a specific file on a running cFS instance
   python3 tools/view_ds_log.py delete-file /cf/sensor_6000_1.dat
 """,
@@ -214,10 +193,6 @@ examples:
     p_decode.add_argument('--filter', help="only show lines containing this text (e.g. 'LC' or 'high humidity')")
     p_decode.add_argument('--csv', help="also write sensor readings to this CSV path")
     p_decode.set_defaults(func=cmd_decode)
-
-    p_list = sub.add_parser('list-files', help="send FM_GET_DIR_LIST_PKT to a running cFS instance")
-    p_list.add_argument('path', nargs='?', default='/cf', help="onboard directory to list (default: /cf)")
-    p_list.set_defaults(func=cmd_list_files)
 
     p_local = sub.add_parser(
         'local-files',
