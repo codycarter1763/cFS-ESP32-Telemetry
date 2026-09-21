@@ -1,4 +1,4 @@
-# NASA cFS & STM32 Telemetry Bridge Implementation
+# NASA cFS & ESP32 Telemetry Bridge Implementation
 <img width="4885" height="4005" alt="IMG_7980" src="https://github.com/user-attachments/assets/8d460c6f-1e6e-4392-9c7e-e8c40d517790" />
 
 # About
@@ -131,15 +131,6 @@ sending.
 python3 tools/view_ds_log.py delete-file /cf/sensor_6000_1.dat
 ```
 
-# Results
-Below shows the working setup, where a ESP32 connected to cFS can sucessfully send CCSDS packets to ESP32_BRIDGE, and out to TO_LAB to mimic how a real aerospace system works. 
-
-## Demonstration of LC App
-
-## Demonstration of HS App
-
-## Demonstration of FM App
-
 ## Design Information
 Here, I wanted to document some design challenges I faced and context for the inner workings of the apps and ESP32 for anyone who wants to trace through my software.
 
@@ -157,12 +148,12 @@ Here, I wanted to document some design challenges I faced and context for the in
 - Strictly edge triggered, so telemetry passing across the threshold will trigger the LC error.
 - Currently, LC will change from PASS to FAIL and vice versa immediately upon a threshold crossing, and then will throw an exception if a certain amount of packets are FAIL.
 - LC by default is disabled, so for learning purposes I added an LC button to send a command via CI_LAB to set LC_STATE to ACTIVE.
-- After an exception is thrown after a set amount of FAIL packets, LC_STATE is set to passive, therefore a SC app sequence runs to set LC_STATE to ACTIVE again. 
-
+- After a set amount of FAIL packets triggers an exception, LC automatically demotes that specific actionpoint to PASSIVE — the LC app itself stays ACTIVE the entire time. An SC sequence then sends a Set AP State command to re-arm that specific actionpoint back to ACTIVE.
+  
 ### SC
-- RTS1 currently starts other commands sequences, follows  NOOP -> start RTS3 -> start RTS4
+- RTS1 currently starts other commands sequences, follows  NOOP -> Enable RTS3 -> Start RTS3 -> Enable RTS4 
 - RTS3 is a self restarting loop that tells SC to evaluate the Action Points (AP) to see whether a threshold for temperature or humidity has been reached. SCH_LAB by itself does not have the functionality to send a payload with its message as LC_SAMPLE_AP_MID needs an 8-byte payload to evaluate Action Points, so RTS3 solves this problem.
-- RTS4 is a self restarting loop that rearms LC Action Points to ACTIVE after a fault trigger, since by design LC switches to PASSIVE indefinitely after a fault.
+- RTS4 rearms LC Action Points to ACTIVE after a fault trigger, since by design LC switches to PASSIVE indefinitely after a fault.
 
 ### HS
 - Connected to ESP32_BRIDGE_APP to restart app in case there is a crash or a serial disconnection.
