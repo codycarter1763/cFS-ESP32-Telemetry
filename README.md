@@ -74,7 +74,62 @@ To run:
 
 If everything is running correctly, the terminal should show cFS posting commands and a GUI should appear. Click 'Enable Telemetry' at destination IP 127.0.0.1 to let data from the TO_LAB app to be transmitted out of cFS to the GUI via UDP.
 
-## Viewing Data Files 
+## DS Log Viewer / FM File Tool
+
+`tools/view_ds_log.py` is a small utility for working with cFS's Data
+Storage (DS) log files and File Manager (FM) commands. It has three
+subcommands:
+
+| Command       | Needs cFS running? | What it does                                      |
+|---------------|---------------------|----------------------------------------------------|
+| `decode`      | No                  | Decode a DS-recorded `.dat` file offline           |
+| `local-files` | No                  | List `.dat` files sitting in a local directory     |
+| `delete-file` | Yes                 | Send `FM_DELETE_FILE` to a live cFS instance       |
+
+Run `python3 tools/view_ds_log.py --help` at any time for the full
+option list and examples.
+
+### decode
+
+Reads a raw `.dat` file written by DS and prints each packet in
+human-readable form. DS files are just the same CCSDS packets that
+flow live over the Software Bus, concatenated after a small file
+header — this walks that structure and decodes each packet the same
+way the live telemetry GUI does.
+
+```bash
+python3 tools/view_ds_log.py decode build-native_std/exe/cpu1/cf/events00001008.dat
+```
+
+Optional flags:
+
+```bash
+# Only show lines containing specific text
+python3 tools/view_ds_log.py decode <file>.dat --filter "high humidity"
+
+# Also write sensor readings out to CSV
+python3 tools/view_ds_log.py decode <file>.dat --csv readings.csv
+```
+
+### local-files
+
+Lists every `.dat` file in a local directory along with its size —
+useful for seeing what DS has accumulated in `/cf` without needing
+cFS running at all.
+
+```bash
+python3 tools/view_ds_log.py local-files build-native_std/exe/cpu1/cf
+```
+
+### delete-file
+
+Sends `FM_DELETE_FILE` to a live cFS instance to remove a specific
+onboard file. No confirmation prompt — double-check the path before
+sending.
+
+```bash
+python3 tools/view_ds_log.py delete-file /cf/sensor_6000_1.dat
+```
 
 # Results
 Below shows the working setup, where a ESP32 connected to cFS can sucessfully send CCSDS packets to ESP32_BRIDGE, and out to TO_LAB to mimic how a real aerospace system works. 
