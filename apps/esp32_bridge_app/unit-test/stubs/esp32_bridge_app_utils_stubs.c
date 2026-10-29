@@ -25,6 +25,7 @@
 #include "esp32_bridge_app_utils.h"
 #include "utgenstub.h"
 
+
 /*
  * ----------------------------------------------------
  * Generated stub function for ESP32_BRIDGE_APP_GetCrc()
@@ -32,9 +33,29 @@
  */
 void ESP32_BRIDGE_APP_GetCrc(const char *TableName)
 {
-    UT_GenStub_AddParam(ESP32_BRIDGE_APP_GetCrc, const char *, TableName);
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_GetCrc, const char *, TableName);
 
-    UT_GenStub_Execute(ESP32_BRIDGE_APP_GetCrc, Basic, NULL);
+UT_GenStub_Execute(ESP32_BRIDGE_APP_GetCrc, Basic, NULL);
+
+}
+
+/*
+ * ----------------------------------------------------
+ * Generated stub function for ESP32_BRIDGE_APP_ParseSensorPacket()
+ * ----------------------------------------------------
+ */
+CFE_Status_t ESP32_BRIDGE_APP_ParseSensorPacket(const uint8 *Buf, size_t Len, float *TempC, float *HumPct)
+{
+UT_GenStub_SetupReturnBuffer(ESP32_BRIDGE_APP_ParseSensorPacket, CFE_Status_t);
+
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_ParseSensorPacket, const uint8 *, Buf);
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_ParseSensorPacket, size_t , Len);
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_ParseSensorPacket, float *, TempC);
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_ParseSensorPacket, float *, HumPct);
+
+UT_GenStub_Execute(ESP32_BRIDGE_APP_ParseSensorPacket, Basic, NULL);
+
+return UT_GenStub_GetReturnValue(ESP32_BRIDGE_APP_ParseSensorPacket, CFE_Status_t);
 }
 
 /*
@@ -44,11 +65,12 @@ void ESP32_BRIDGE_APP_GetCrc(const char *TableName)
  */
 CFE_Status_t ESP32_BRIDGE_APP_TblValidationFunc(void *TblData)
 {
-    UT_GenStub_SetupReturnBuffer(ESP32_BRIDGE_APP_TblValidationFunc, CFE_Status_t);
+UT_GenStub_SetupReturnBuffer(ESP32_BRIDGE_APP_TblValidationFunc, CFE_Status_t);
 
-    UT_GenStub_AddParam(ESP32_BRIDGE_APP_TblValidationFunc, void *, TblData);
+UT_GenStub_AddParam(ESP32_BRIDGE_APP_TblValidationFunc, void *, TblData);
 
-    UT_GenStub_Execute(ESP32_BRIDGE_APP_TblValidationFunc, Basic, NULL);
+UT_GenStub_Execute(ESP32_BRIDGE_APP_TblValidationFunc, Basic, NULL);
 
-    return UT_GenStub_GetReturnValue(ESP32_BRIDGE_APP_TblValidationFunc, CFE_Status_t);
+return UT_GenStub_GetReturnValue(ESP32_BRIDGE_APP_TblValidationFunc, CFE_Status_t);
 }
+

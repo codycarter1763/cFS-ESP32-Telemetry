@@ -4,6 +4,7 @@ set(APP_SRC_FILES
   fsw/src/esp32_bridge_app.c
   fsw/src/esp32_bridge_app_cmds.c
   fsw/src/esp32_bridge_app_utils.c
+  fsw/src/esp32_bridge_app_serial.c
 )
 
 if (CFE_EDS_ENABLED)

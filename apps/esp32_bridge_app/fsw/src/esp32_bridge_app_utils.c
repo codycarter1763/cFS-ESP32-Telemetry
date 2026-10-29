@@ -73,3 +73,32 @@ void ESP32_BRIDGE_APP_GetCrc(const char *TableName)
         CFE_ES_WriteToSysLog("Sample App: CRC: 0x%08lX\n\n", (unsigned long)Crc);
     }
 }
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/*                                                                 */
+/* Decode sensor fields from a raw ESP32 CCSDS packet              */
+/*                                                                 */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+CFE_Status_t ESP32_BRIDGE_APP_ParseSensorPacket(const uint8 *Buf, size_t Len, float *TempC, float *HumPct)
+{
+    int16  temp_raw;
+    uint16 hum_raw;
+
+    if (Buf == NULL || TempC == NULL || HumPct == NULL)
+    {
+        return CFE_ES_BAD_ARGUMENT;
+    }
+
+    if (Len < ESP32_BRIDGE_APP_SENSOR_PKT_MIN_LEN)
+    {
+        return CFE_STATUS_WRONG_MSG_LENGTH;
+    }
+
+    temp_raw = (int16)((Buf[10] << 8) | Buf[11]);
+    hum_raw  = (uint16)((Buf[12] << 8) | Buf[13]);
+
+    *TempC  = temp_raw / 100.0f;
+    *HumPct = hum_raw / 100.0f;
+
+    return CFE_SUCCESS;
+}

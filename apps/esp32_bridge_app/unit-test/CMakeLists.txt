@@ -28,6 +28,7 @@ add_cfe_coverage_stubs(esp32_bridge_app
   stubs/esp32_bridge_app_cmds_stubs.c
   stubs/esp32_bridge_app_dispatch_stubs.c
   stubs/esp32_bridge_app_utils_stubs.c
+  stubs/esp32_bridge_app_serial_stubs.c  
 )
 
 add_library(esp32_bridge_app_ut_common STATIC
