@@ -1,0 +1,100 @@
+name: CI
+
+# Build cFS, run the esp32_bridge_app unit tests with coverage, run static
+# analysis, and compile the ESP32 firmware on every push and pull request.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run that's still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # cFS bundles apps (SBN) that declare cmake_minimum_required < 3.5;
+  # CMake 4 refuses those unless this is set. Harmless on older CMake.
+  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
+jobs:
+  fsw:
+    name: cFS build, unit tests, coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov cppcheck
+
+      - name: Static analysis (cppcheck)
+        run: |
+          cppcheck --enable=warning,performance,portability --error-exitcode=1 \
+            --inline-suppr --std=c99 -q \
+            -I apps/esp32_bridge_app/fsw/inc \
+            -I apps/esp32_bridge_app/config \
+            -I apps/esp32_bridge_app/fsw/src \
+            apps/esp32_bridge_app/fsw/src
+
+      - name: Configure (native_std, unit tests enabled)
+        run: make native_std.prep
+
+      - name: Build and install
+        run: make -j"$(nproc)" native_std.install
+
+      - name: Run esp32_bridge_app unit tests
+        working-directory: build-native_std/native/default_cpu1
+        # --no-tests=error fails the job if the test runners are missing
+        run: ctest -R '^coverage-esp32_bridge_app-' --output-on-failure --no-tests=error
+
+      - name: Coverage report
+        if: always()
+        run: |
+          lcov --capture --branch-coverage --ignore-errors mismatch,inconsistent,unused \
+            --directory build-native_std/native/default_cpu1/apps/esp32_bridge_app \
+            --include '*/apps/esp32_bridge_app/fsw/src/*' \
+            --output-file coverage.info
+          genhtml coverage.info --branch-coverage --ignore-errors inconsistent \
+            --output-directory coverage-html
+          {
+            echo '## esp32_bridge_app coverage'
+            echo '```'
+            lcov --summary coverage.info --branch-coverage 2>&1 | grep -E 'lines|functions|branches'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: coverage-html
+          if-no-files-found: ignore
+
+  firmware:
+    name: ESP32 firmware build (PlatformIO)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('ESP32_Bridge/**/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        run: pio run -d "ESP32_Bridge/ESP32 CCSDS Temp Humid Collector"
