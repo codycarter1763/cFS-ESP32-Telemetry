@@ -213,16 +213,16 @@ CFE_Status_t ESP32_BRIDGE_APP_Init(void)
     /* Initialize sensor data telemetry packet */
     CFE_MSG_Init(CFE_MSG_PTR(ESP32_BRIDGE_APP_Data.SensorData.TelemetryHeader),
                  CFE_SB_ValueToMsgId(ESP32_BRIDGE_APP_SENSOR_DATA_MID),
-                 sizeof(ESP32_BRIDGE_APP_Data.SensorData));
+                 (unsigned long)sizeof(ESP32_BRIDGE_APP_Data.SensorData));
 
     printf("[ESP32_BRIDGE_APP] Sensor data message initialized (MID=0x%X, size=%lu)\n",
            ESP32_BRIDGE_APP_SENSOR_DATA_MID,
-           sizeof(ESP32_BRIDGE_APP_Data.SensorData));
+           (unsigned long)sizeof(ESP32_BRIDGE_APP_Data.SensorData));
 
     /* Initialize housekeeping packet */
     CFE_MSG_Init(CFE_MSG_PTR(ESP32_BRIDGE_APP_Data.HkTlm.TelemetryHeader),
                  CFE_SB_ValueToMsgId(ESP32_BRIDGE_APP_HK_TLM_MID),
-                 sizeof(ESP32_BRIDGE_APP_Data.HkTlm));
+                 (unsigned long)sizeof(ESP32_BRIDGE_APP_Data.HkTlm));
 
     /* Open serial port */
     printf("[ESP32_BRIDGE_APP] Attempting to open serial port: %s @ %u baud\n",
