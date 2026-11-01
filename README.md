@@ -4,6 +4,8 @@
 # About
 This repo documents an embedded flight-software integration project demonstrating communication between NASA's Core Flight System (cFS) and an ESP32 microcontroller and DHT11 temperature/humidity sensor using CCSDS Space Packet Protocol.
 
+[![CI](https://img.shields.io/github/actions/workflow/status/codycarter1763/cFS-ESP32-Telemetry/ci.yml?style=for-the-badge&label=CI)](https://github.com/codycarter1763/cFS-ESP32-Telemetry/actions/workflows/ci.yml)
+
 # What is NASA Core Flight System?
 NASA's Core Flight System (cFS) is a reusable, platform-independent flight software framework designed for embedded real-time systems. Its architecture separates applications from the underlying operating system and hardware, making flight software more portable and reusable.
 
