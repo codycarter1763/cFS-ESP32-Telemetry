@@ -1,0 +1,18 @@
+# Run cFS + the ESP32 bridge (from the repo root):
+#   docker compose -f docker/compose.yaml up --build
+# Stop: Ctrl+C  (or: docker compose -f docker/compose.yaml down)
+services:
+  cfs:
+    build:
+      context: ..                  # repo root: the image needs the whole source tree
+      dockerfile: docker/Dockerfile
+    image: cfs-esp32
+    init: true            # forwards Ctrl+C / docker stop to cFS so it shuts down cleanly
+    tty: true             # line-buffered output, so cFS logs show up immediately
+    network_mode: host    # CI_LAB (UDP 1234) and TO_LAB telemetry reach the GUI on the host as before
+    sysctls:
+      fs.mqueue.msg_max: 256   # cFS needs deeper message queues than the container default (10)
+    devices:
+      # HOST device : CONTAINER device. The app always opens /dev/ttyUSB0 inside the container.
+      # Your board shows up as /dev/ttyACM0 by default; override with ESP32_PORT=/dev/ttyUSB0 if needed.
+      - ${ESP32_PORT:-/dev/ttyACM0}:/dev/ttyUSB0

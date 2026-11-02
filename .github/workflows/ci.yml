@@ -1,7 +1,8 @@
 name: CI
 
 # Build cFS, run the esp32_bridge_app unit tests with coverage, run static
-# analysis, and compile the ESP32 firmware on every push and pull request.
+# analysis, compile the ESP32 firmware, and build + test the Docker image
+# on every push and pull request.
 
 on:
   push:
@@ -98,3 +99,40 @@ jobs:
 
       - name: Build firmware
         run: pio run -d "ESP32_Bridge/ESP32 CCSDS Temp Humid Collector"
+
+  container:
+    name: Docker image build + unit tests in container
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The Dockerfile's "build" stage holds the full cFS build, including the
+      # unit test runners; the final image keeps only core-cpu1 and cf/.
+      - name: Build test image (Dockerfile build stage)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: build
+          tags: cfs-esp32-build
+          load: true                     # make the image available to the next step
+          cache-from: type=gha           # reuse layers from earlier runs
+          cache-to: type=gha,mode=max
+
+      - name: Run esp32_bridge_app unit tests inside the container
+        run: |
+          docker run --rm -w /src/build-native_std/native/default_cpu1 cfs-esp32-build \
+            ctest -R '^coverage-esp32_bridge_app-' --output-on-failure --no-tests=error
+
+      - name: Build runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          tags: cfs-esp32
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

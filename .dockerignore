@@ -1,0 +1,7 @@
+# Keep the build context small and never copy a stale build into the image
+.git
+build-*/
+build_ut/
+**/.pio/
+**/__pycache__/
+*.pdf
