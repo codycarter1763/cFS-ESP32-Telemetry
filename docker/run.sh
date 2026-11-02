@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Build or run the cFS + ESP32 bridge container.
 #
-#   ./docker/run.sh build            build the image
-#   ./docker/run.sh sim              run against the simulated ESP32 (start tools/esp32_sim.py first)
-#   ./docker/run.sh hw [PORT]        run against the real board (default PORT: /dev/ttyACM0)
+#   ./run.sh hw [PORT]     run against the real board (default PORT: /dev/ttyACM0)
+#   ./run.sh sim           run against the simulated ESP32 (start tools/esp32_sim.py first)
+#   ./run.sh pull          download the latest published image
+#   ./run.sh build         build the image from source (needs the full repo)
 #
+# Works on its own: without a local build, the published image is downloaded automatically.
 # Stop a running container with Ctrl+C.
 set -euo pipefail
 
-IMAGE=cfs-esp32          # image names must be lowercase
+IMAGE="${CFS_IMAGE:-ghcr.io/codycarter1763/cfs-esp32:latest}"   # image names must be lowercase
 NAME=cFS-ESP32           # container names can use capitals
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SIM_LINK=/tmp/ttyESP32
@@ -27,7 +29,15 @@ if [ "${1:-}" = sim ] || [ "${1:-}" = hw ]; then
 fi
 
 case "${1:-}" in
+  pull)
+    docker pull "$IMAGE"
+    ;;
+
   build)
+    if [ ! -f "$REPO_ROOT/docker/Dockerfile" ]; then
+      echo "build needs the full repository; use './run.sh pull' to get the published image" >&2
+      exit 1
+    fi
     docker build -f "$REPO_ROOT/docker/Dockerfile" -t "$IMAGE" "$REPO_ROOT"
     ;;
 
@@ -60,7 +70,7 @@ case "${1:-}" in
     ;;
 
   *)
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
